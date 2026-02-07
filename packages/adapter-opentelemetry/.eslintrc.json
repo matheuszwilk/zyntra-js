@@ -1,0 +1,9 @@
+{
+    "root": true,
+    "extends": [
+        "@zyntra-js/eslint-config"
+    ],
+    "parserOptions": {
+        "project": "./tsconfig.json"
+    }
+}

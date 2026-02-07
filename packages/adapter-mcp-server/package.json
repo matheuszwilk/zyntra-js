@@ -1,0 +1,27 @@
+{
+  "name": "@zyntra-js/adapter-mcp-server",
+  "version": "0.3.4",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch",
+    "build": "tsup src/index.ts --dts --format esm,cjs --out-dir dist"
+  },
+  "devDependencies": {
+    "@zyntra-js/core": "*"
+  },
+  "peerDependencies": {
+    "@zyntra-js/core": "*"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@socotra/modelcontextprotocol-sdk": "1.18.0",
+    "mcp-handler": "^1.0.3",
+    "zod": "^3"
+  }
+}

@@ -1,0 +1,397 @@
+---
+title: Express
+description: Build type-safe REST APIs with ZyntraJS and Express.js, the minimal and flexible Node.js web framework.
+---
+
+Express.js is the most popular Node.js web framework, known for its minimalist approach and robust middleware ecosystem. When combined with ZyntraJS, you maintain Express's simplicity and flexibility while gaining end-to-end type safety, automatic schema generation, and a modern API design experience.
+
+This guide shows you how to integrate ZyntraJS with Express to build production-ready REST APIs. You'll learn how to leverage Express's mature ecosystem (middleware, routing, error handling) alongside ZyntraJS's type-safe controllers and automatic documentation.
+
+<Callout type="info" title="Perfect for REST APIs">
+  Express + ZyntraJS is ideal for building traditional REST APIs, microservices, and backends that need Express's mature middleware ecosystem.
+</Callout>
+
+---
+
+## Quick Start
+
+The fastest way to start is using the official CLI, which scaffolds a complete Express application with ZyntraJS:
+
+<Tabs items={['npm', 'pnpm', 'yarn', 'bun']} groupId="package-manager">
+  <Tab value="npm">
+    ```bash
+    npx create-zyntra-app@latest my-app --template express
+    cd my-app
+    npm install
+    npm run dev
+    ```
+  </Tab>
+  <Tab value="pnpm">
+    ```bash
+    pnpm create zyntra-app my-app --template express
+    cd my-app
+    pnpm install
+    pnpm dev
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn create zyntra-app my-app --template express
+    cd my-app
+    yarn install
+    yarn dev
+    ```
+  </Tab>
+  <Tab value="bun">
+    ```bash
+    bunx create-zyntra-app my-app --template express
+    cd my-app
+    bun install
+    bun dev
+    ```
+  </Tab>
+</Tabs>
+
+Your API runs at `http://localhost:3000/api/v1`, and interactive docs at `http://localhost:3000/api/v1/docs` 🚀
+
+---
+
+## Manual Setup
+
+<Card title="Complete Express Setup Guide">
+  <Steps>
+    <Step>
+      ### Prerequisites
+
+      Before you begin, ensure you have:
+      - **Node.js** 18.0+ (20.0+ recommended)
+      - **Express** 4.0+
+      - **TypeScript** 5.0+
+    </Step>
+
+    <Step>
+      ### Install Dependencies
+
+      Install ZyntraJS, Express, and Zod for schema validation:
+
+<Tabs items={['npm', 'pnpm', 'yarn', 'bun']} groupId="package-manager">
+  <Tab value="npm">
+    ```bash
+    npm install @zyntra-js/core express zod
+    npm install -D @types/express tsx
+    ```
+  </Tab>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add @zyntra-js/core express zod
+    pnpm add -D @types/express tsx
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add @zyntra-js/core express zod
+    yarn add -D @types/express tsx
+    ```
+  </Tab>
+  <Tab value="bun">
+    ```bash
+    bun add @zyntra-js/core express zod
+    bun add -D @types/express
+    ```
+      </Tab>
+    </Tabs>
+
+      The `tsx` package enables running TypeScript directly during development without a build step.
+    </Step>
+
+    <Step>
+      ### Define Application Context
+
+The context defines dependencies available throughout your API. Create `src/zyntra.context.ts`:
+
+```typescript title="src/zyntra.context.ts"
+/**
+ * Application Context Type
+ * Defines what dependencies are available to all API handlers
+ */
+export interface AppContext {
+  // Add your dependencies here, e.g.:
+  // db: PrismaClient
+  // logger: Logger
+}
+
+/**
+ * Context Factory
+ * Creates the context instance passed to handlers
+ */
+export function createZyntraAppContext(): AppContext {
+  return {
+    // Initialize dependencies here
+  }
+}
+      ```
+    </Step>
+
+    <Step>
+      ### Initialize ZyntraJS
+
+Create the main Zyntra instance. Create `src/zyntra.ts`:
+
+```typescript title="src/zyntra.ts"
+import { Zyntra } from '@zyntra-js/core'
+import { createZyntraAppContext } from './zyntra.context'
+
+export const zyntra = Zyntra
+  .context(createZyntraAppContext())
+  .config({
+    baseURL: process.env.ZYNTRA_API_URL || 'http://localhost:3000',
+    basePATH: process.env.ZYNTRA_API_BASE_PATH || '/api/v1',
+  })
+  .docs({
+    info: {
+      title: 'My Express API',
+      version: '1.0.0',
+      description: 'REST API built with Express and ZyntraJS',
+    }
+  })
+  .create()
+      ```
+    </Step>
+
+    <Step>
+      ### Create Your First Controller
+
+Controllers group related endpoints. Create `src/features/user/controllers/user.controller.ts`:
+
+```typescript title="src/features/user/controllers/user.controller.ts"
+import { zyntra } from '@/zyntra'
+
+export const userController = zyntra.controller({
+  name: 'User',
+  path: '/users',
+  actions: {
+    list: zyntra.query({
+      path: '/',
+      handler: async ({ response }) => {
+        return response.success({
+          users: [
+            { id: 1, name: 'Alice', email: 'alice@example.com' },
+            { id: 2, name: 'Bob', email: 'bob@example.com' },
+          ]
+        })
+      },
+    }),
+  },
+})
+```
+
+Create barrel export at `src/features/user/index.ts`:
+
+```typescript title="src/features/user/index.ts"
+export * from './controllers/user.controller'
+```
+
+      This creates `GET /api/v1/users/` with fully typed responses.
+    </Step>
+
+    <Step>
+      ### Create Application Router
+
+The router assembles all controllers. Create `src/zyntra.router.ts`:
+
+```typescript title="src/zyntra.router.ts"
+import { zyntra } from './zyntra'
+import { userController } from './features/user'
+
+export const AppRouter = zyntra.router({
+  controllers: {
+    user: userController
+  }
+})
+
+      export type AppRouterType = typeof AppRouter
+      ```
+    </Step>
+
+    <Step>
+      ### Set Up Express Server
+
+Connect the router to Express using the adapter. Create `src/index.ts`:
+
+```typescript title="src/index.ts"
+import express from 'express'
+import { expressAdapter } from '@zyntra-js/core/adapters'
+import { AppRouter } from './zyntra.router'
+
+const app = express()
+
+const ZYNTRA_API_BASE_PATH = process.env.ZYNTRA_API_BASE_PATH || '/api/v1'
+const PORT = process.env.PORT || 3000
+
+// Mount the ZyntraJS router
+app.use(ZYNTRA_API_BASE_PATH, expressAdapter(AppRouter.handler))
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`)
+})
+```
+
+The `expressAdapter` converts ZyntraJS's universal handler into Express-compatible middleware.
+
+### Step 7: Add Development Scripts
+
+Update your `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }
+}
+```
+
+      Now run `npm run dev` to start the development server with hot reload!
+    </Step>
+  </Steps>
+</Card>
+
+## Using Express Middleware
+
+Express middleware works seamlessly with ZyntraJS. Add middleware before mounting the Zyntra router:
+
+```typescript title="src/index.ts"
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import compression from 'compression'
+import { expressAdapter } from '@zyntra-js/core/adapters'
+import { AppRouter } from './zyntra.router'
+
+const app = express()
+
+// Add Express middleware
+app.use(cors())
+app.use(helmet())
+app.use(compression())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+// Add custom middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`)
+  next()
+})
+
+// Mount ZyntraJS router
+app.use('/api/v1', expressAdapter(AppRouter.handler))
+
+app.listen(3000)
+```
+
+Middleware like CORS, security headers, compression, and logging work exactly as you'd expect in Express.
+
+---
+
+## Type-Safe Client
+
+Create a type-safe client for consuming your API. Create `src/zyntra.client.ts`:
+
+```typescript title="src/zyntra.client.ts"
+import { createZyntraClient } from '@zyntra-js/core/client'
+import type { AppRouterType } from './zyntra.router'
+
+export const api = createZyntraClient<AppRouterType>({
+  baseURL: process.env.ZYNTRA_API_URL || 'http://localhost:3000',
+  basePATH: process.env.ZYNTRA_API_BASE_PATH || '/api/v1',
+  router: () => require('./zyntra.router').AppRouter,
+})
+
+export type ApiClient = typeof api
+```
+
+Use it anywhere in your application:
+
+```typescript
+// Fully typed request and response
+const { users } = await api.user.list.query()
+```
+
+---
+
+## Zyntra Studio (API Playground)
+
+ZyntraJS includes an interactive API playground called **Zyntra Studio**. It's automatically available at `/api/v1/docs` when you configure the `.docs()` method.
+
+To access it:
+
+1. Start your dev server: `npm run dev`
+2. Navigate to `http://localhost:3000/api/v1/docs`
+3. You'll see an interactive interface where you can:
+   - Browse all API endpoints
+   - View request/response schemas
+   - Test endpoints directly
+   - See auto-generated examples
+
+The playground updates automatically as you add endpoints.
+
+---
+
+## Environment Variables
+
+Create a `.env` file for configuration:
+
+```bash title=".env"
+PORT=3000
+ZYNTRA_API_BASE_PATH=/api/v1
+ZYNTRA_API_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+---
+
+## Project Structure
+
+Here's the recommended structure:
+
+<Files>
+  <Folder name="src" defaultOpen>
+    <Folder name="features">
+      <Folder name="user">
+        <Folder name="controllers">
+          <File name="user.controller.ts" />
+        </Folder>
+        <File name="index.ts" />
+      </Folder>
+    </Folder>
+    <Folder name="docs">
+      <File name="openapi.json" />
+    </Folder>
+    <File name="index.ts" />
+    <File name="zyntra.ts" />
+    <File name="zyntra.context.ts" />
+    <File name="zyntra.router.ts" />
+    <File name="zyntra.client.ts" />
+    <File name="zyntra.schema.ts" />
+  </Folder>
+  <File name="package.json" />
+  <File name="tsconfig.json" />
+</Files>
+
+---
+
+## Next Steps
+
+<Cards>
+  <Card title="Core Concepts" href="/docs/builder">
+    Learn about Builder, Router, and Controllers
+  </Card>
+  <Card title="Actions" href="/docs/actions">
+    Create queries and mutations with validation
+  </Card>
+  <Card title="Middleware" href="/docs/middleware">
+    Add authentication and custom middleware
+  </Card>
+</Cards>

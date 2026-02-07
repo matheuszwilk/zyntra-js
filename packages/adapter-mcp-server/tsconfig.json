@@ -1,0 +1,13 @@
+{
+  "extends": "../../tooling/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@zyntra-js/core": ["../core/src"],
+      "@zyntra-js/*": ["../*/src"]
+    }
+  },
+  "include": ["src/**/*", "examples/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
